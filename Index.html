@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0F1923">
+<title>FichajeApp</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0F1923;
+    --surface: #162030;
+    --surface2: #1E2D40;
+    --border: #243447;
+    --accent: #00D4FF;
+    --accent2: #FF6B35;
+    --accent3: #00FF88;
+    --pause: #FFB800;
+    --text: #E8F4FD;
+    --text2: #7A9BBF;
+    --text3: #4A6785;
+    --danger: #FF4757;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* SCREENS */
+  .screen { display: none; flex-direction: column; min-height: 100vh; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  /* STATUS BAR */
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--text2);
+  }
+  .status-time { font-weight: 700; color: var(--text); }
+
+  /* HEADER */
+  .header {
+    padding: 16px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-title span { color: var(--accent); }
+  .header-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* MAIN CLOCK CARD */
+  .clock-card {
+    margin: 0 16px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .clock-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .clock-card.working::before { opacity: 1; background: linear-gradient(90deg, transparent, var(--accent3), transparent); }
+  .clock-card.paused::before { opacity: 1; background: linear-gradient(90deg, transparent, var(--pause), transparent); }
+
+  .clock-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 10px;
+  }
+  .clock-label.working { color: var(--accent3); }
+  .clock-label.paused { color: var(--pause); }
+
+  .clock-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 54px; font-weight: 700; letter-spacing: -2px;
+    color: var(--text); line-height: 1;
+    margin-bottom: 4px;
+  }
+  .clock-display.working { color: var(--accent3); }
+  .clock-display.paused { color: var(--pause); }
+
+  .clock-date { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 16px; font-weight: 700; color: var(--text);
+  }
+  .stat-lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn-main {
+    width: 100%; padding: 18px;
+    border: none; border-radius: var(--radius);
+    font-family: 'Sora', sans-serif;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .btn-main::after {
+    content: '';
+    position: absolute; top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s, opacity 0.4s;
+    opacity: 0;
+  }
+  .btn-main:active::after { width: 300px; height: 300px; opacity: 1; }
+
+  .btn-entrada {
+    background: linear-gradient(135deg, #00D4FF, #0095B3);
+    color: #0F1923;
+  }
+  .btn-salida {
+    background: linear-gradient(135deg, #FF4757, #C0392B);
+    color: white;
+  }
+  .btn-pausa {
+    background: linear-gradient(135deg, #FFB800, #E0A000);
+    color: #0F1923;
+    margin-bottom: 10px;
+  }
+  .btn-reanudar {
+    background: linear-gradient(135deg, #00FF88, #00C060);
+    color: #0F1923;
+    margin-bottom: 10px;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+  .btn-main:active { transform: scale(0.98); }
+
+  /* SECTION */
+  .section { padding: 0 16px; margin-bottom: 16px; }
+  .section-title {
+    font-size: 12px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text3);
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ACTIVITY LOG */
+  .log-list { display: flex; flex-direction: column; gap: 8px; }
+  .log-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .log-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-entrada { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+  .dot-salida { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .dot-pausa { background: var(--pause); box-shadow: 0 0 6px var(--pause); }
+  .dot-reanudar { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+  .log-info { flex: 1; }
+  .log-action { font-size: 13px; font-weight: 600; }
+  .log-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--text2); margin-top: 2px;
+  }
+  .log-duration { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text3); }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 20px;
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    padding: 8px 0;
+    cursor: pointer; border: none; background: none;
+    font-family: 'Sora', sans-serif;
+    font-size: 10px; color: var(--text3);
+    transition: color 0.2s;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-icon { font-size: 20px; line-height: 1; }
+
+  /* PADDING BOTTOM for nav */
+  .pb-nav { padding-bottom: 90px; }
+
+  /* HISTORY SCREEN */
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .day-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .day-header {
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+  .day-date { font-size: 14px; font-weight: 600; }
+  .day-total {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    color: var(--accent);
+  }
+  .day-events { padding: 0 16px 14px; display: none; }
+  .day-events.open { display: block; }
+  .day-event {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px;
+  }
+
+  /* REPORTS SCREEN */
+  .report-tabs {
+    display: flex; gap: 8px;
+    padding: 0 16px; margin-bottom: 16px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .report-tab {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-family: 'Sora', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .report-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+
+  .report-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 0 16px 12px;
+  }
+  .report-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .report-row:last-child { border-bottom: none; }
+  .report-row-label { color: var(--text2); }
+  .report-row-val {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700; color: var(--text);
+  }
+  .report-row-val.green { color: var(--accent3); }
+  .report-row-val.yellow { color: var(--pause); }
+  .report-row-val.red { color: var(--danger); }
+
+  .bar-chart { margin: 0 16px 12px; }
+  .bar-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .bar-day { font-size: 11px; color: var(--text2); width: 28px; }
+  .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.5s ease; }
+  .bar-val { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text2); width: 36px; text-align: right; }
+
+  .export-btn {
+    margin: 0 16px;
+    width: calc(100% - 32px);
+    padding: 15px;
+    border: none; border-radius: var(--radius);
+    background: linear-gradient(135deg, #00D4FF, #0095B3);
+    color: var(--bg);
+    font-family: 'Sora', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    transition: transform 0.2s;
+  }
+  .export-btn:active { transform: scale(0.98); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 10px 20px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.3s;
+    z-index: 200; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* PULSE ANIMATION */
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--text3); font-size: 13px;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-work { background: rgba(0,255,136,0.15); color: var(--accent3); }
+  .badge-pause { background: rgba(255,184,0,0.15); color: var(--pause); }
+</style>
+</head>
+<body>
+
+<!-- SCREEN: HOME -->
+<div class="screen active" id="screen-home">
+  <div class="status-bar">
+    <span class="status-time" id="statusTime">--:--</span>
+    <span>📶 ●●●●</span>
+  </div>
+
+  <div class="header">
+    <div>
+      <div class="header-title">Ficha<span>je</span></div>
+      <div class="header-sub" id="headerGreeting">Buen día</div>
+    </div>
+    <div style="width:40px;height:40px;background:var(--surface2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid var(--border)">👤</div>
+  </div>
+
+  <div class="clock-card" id="clockCard">
+    <div class="clock-label" id="clockLabel">SIN FICHAR</div>
+    <div class="clock-display" id="clockDisplay">00:00:00</div>
+    <div class="clock-date" id="clockDate">--</div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-val" id="statTrabajo">00:00</div>
+        <div class="stat-lbl">Trabajo</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statPausas">00:00</div>
+        <div class="stat-lbl">Pausas</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statBalance">+00:00</div>
+        <div class="stat-lbl">Balance</div>
+      </div>
+    </div>
+
+    <div id="btnZone"></div>
+  </div>
+
+  <div class="section pb-nav">
+    <div class="section-title">Actividad de hoy</div>
+    <div class="log-list" id="todayLog">
+      <div class="empty-state">
+        <div class="empty-icon">🕐</div>
+        Aún no hay fichajes hoy
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: HISTORY -->
+<div class="screen" id="screen-history">
+  <div class="status-bar">
+    <span class="status-time" id="statusTime2">--:--</span>
+    <span>📶 ●●●●</span>
+  </div>
+  <div class="header">
+    <div>
+      <div class="header-title">Histo<span>rial</span></div>
+      <div class="header-sub">Registro de jornadas</div>
+    </div>
+  </div>
+  <div class="section pb-nav" style="flex:1;overflow-y:auto">
+    <div class="history-list" id="historyList">
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        No hay jornadas registradas
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: REPORTS -->
+<div class="screen" id="screen-reports">
+  <div class="status-bar">
+    <span class="status-time" id="statusTime3">--:--</span>
+    <span>📶 ●●●●</span>
+  </div>
+  <div class="header">
+    <div>
+      <div class="header-title">Infor<span>mes</span></div>
+      <div class="header-sub">Análisis de tu tiempo</div>
+    </div>
+  </div>
+
+  <div class="report-tabs">
+    <button class="report-tab active" onclick="setReportTab('semana',this)">Esta semana</button>
+    <button class="report-tab" onclick="setReportTab('mes',this)">Este mes</button>
+    <button class="report-tab" onclick="setReportTab('total',this)">Total</button>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding-bottom:90px" id="reportContent">
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="navigate('home',this)">
+    <span class="nav-icon">⏱️</span>
+    <span>Fichar</span>
+  </button>
+  <button class="nav-item" onclick="navigate('history',this)">
+    <span class="nav-icon">📋</span>
+    <span>Historial</span>
+  </button>
+  <button class="nav-item" onclick="navigate('reports',this)">
+    <span class="nav-icon">📊</span>
+    <span>Informes</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let state = JSON.parse(localStorage.getItem('fichajeState') || 'null') || {
+  status: 'idle', // idle | working | paused
+  startTime: null,
+  pauseStart: null,
+  totalWorkMs: 0,
+  totalPauseMs: 0,
+  todayEvents: [],
+  history: []
+};
+
+const JORNADA_NORMAL = 8 * 3600 * 1000; // 8h in ms
+
+function save() {
+  localStorage.setItem('fichajeState', JSON.stringify(state));
+}
+
+// ===== CLOCK =====
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function msToHHMM(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return `${pad(h)}:${pad(m)}`;
+}
+
+function msToHHMMSS(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function formatTime(date) {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function formatDate(date) {
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 13) return 'Buenos días ☀️';
+  if (h < 20) return 'Buenas tardes 🌤️';
+  return 'Buenas noches 🌙';
+}
+
+// Calculate current work & pause totals
+function getCurrentTotals() {
+  const now = Date.now();
+  let work = state.totalWorkMs;
+  let pause = state.totalPauseMs;
+
+  if (state.status === 'working' && state.startTime) {
+    work += now - state.startTime;
+  } else if (state.status === 'paused' && state.pauseStart) {
+    pause += now - state.pauseStart;
+  }
+  return { work, pause };
+}
+
+// ===== UI UPDATE =====
+function updateClock() {
+  const now = new Date();
+  const timeStr = formatTime(now);
+  document.getElementById('statusTime').textContent = timeStr;
+  document.getElementById('statusTime2').textContent = timeStr;
+  document.getElementById('statusTime3').textContent = timeStr;
+  document.getElementById('headerGreeting').textContent = getGreeting();
+  document.getElementById('clockDate').textContent = formatDate(now);
+
+  const { work, pause } = getCurrentTotals();
+  const balance = work - JORNADA_NORMAL;
+
+  // Elapsed timer
+  let elapsed = 0;
+  if (state.status === 'working' && state.startTime) {
+    elapsed = Date.now() - state.startTime;
+  } else if (state.status === 'paused' && state.pauseStart) {
+    elapsed = Date.now() - state.pauseStart;
+  }
+
+  const card = document.getElementById('clockCard');
+  const label = document.getElementById('clockLabel');
+  const display = document.getElementById('clockDisplay');
+
+  if (state.status === 'working') {
+    card.className = 'clock-card working';
+    label.className = 'clock-label working pulse';
+    label.textContent = '● TRABAJANDO';
+    display.className = 'clock-display working';
+    display.textContent = msToHHMMSS(elapsed);
+  } else if (state.status === 'paused') {
+    card.className = 'clock-card paused';
+    label.className = 'clock-label paused pulse';
+    label.textContent = '⏸ EN PAUSA';
+    display.className = 'clock-display paused';
+    display.textContent = msToHHMMSS(elapsed);
+  } else {
+    card.className = 'clock-card';
+    label.className = 'clock-label';
+    label.textContent = 'SIN FICHAR';
+    display.className = 'clock-display';
+    display.textContent = '00:00:00';
+  }
+
+  document.getElementById('statTrabajo').textContent = msToHHMM(work);
+  document.getElementById('statPausas').textContent = msToHHMM(pause);
+  const balSign = balance >= 0 ? '+' : '-';
+  document.getElementById('statBalance').textContent = `${balSign}${msToHHMM(Math.abs(balance))}`;
+  document.getElementById('statBalance').style.color = balance >= 0 ? 'var(--accent3)' : 'var(--danger)';
+
+  updateButtons();
+}
+
+function updateButtons() {
+  const zone = document.getElementById('btnZone');
+  if (state.status === 'idle') {
+    zone.innerHTML = `<button class="btn-main btn-entrada" onclick="entrada()">▶ Entrada</button>`;
+  } else if (state.status === 'working') {
+    zone.innerHTML = `
+      <button class="btn-main btn-pausa" onclick="pausa()">⏸ Iniciar Pausa</button>
+      <button class="btn-main btn-salida" onclick="salida()">⏹ Registrar Salida</button>`;
+  } else if (state.status === 'paused') {
+    zone.innerHTML = `
+      <button class="btn-main btn-reanudar" onclick="reanudar()">▶ Reanudar Trabajo</button>
+      <button class="btn-main btn-salida" onclick="salida()">⏹ Registrar Salida</button>`;
+  }
+}
+
+// ===== ACTIONS =====
+function addEvent(type, label, color) {
+  const now = new Date();
+  state.todayEvents.push({
+    type, label,
+    time: now.toISOString(),
+    timeStr: formatTime(now)
+  });
+  renderTodayLog();
+}
+
+function entrada() {
+  state.status = 'working';
+  state.startTime = Date.now();
+  state.totalWorkMs = 0;
+  state.totalPauseMs = 0;
+  state.todayEvents = [];
+  addEvent('entrada', 'Entrada', 'dot-entrada');
+  save();
+  showToast('✅ Entrada registrada');
+  updateClock();
+}
+
+function pausa() {
+  // Save current work segment
+  state.totalWorkMs += Date.now() - state.startTime;
+  state.startTime = null;
+  state.status = 'paused';
+  state.pauseStart = Date.now();
+  addEvent('pausa', 'Inicio de pausa', 'dot-pausa');
+  save();
+  showToast('⏸ Pausa iniciada');
+  updateClock();
+}
+
+function reanudar() {
+  state.totalPauseMs += Date.now() - state.pauseStart;
+  state.pauseStart = null;
+  state.status = 'working';
+  state.startTime = Date.now();
+  addEvent('reanudar', 'Reanuda trabajo', 'dot-reanudar');
+  save();
+  showToast('▶ Trabajo reanudado');
+  updateClock();
+}
+
+function salida() {
+  const now = Date.now();
+
+  if (state.status === 'working') {
+    state.totalWorkMs += now - state.startTime;
+  } else if (state.status === 'paused') {
+    state.totalPauseMs += now - state.pauseStart;
+  }
+
+  addEvent('salida', 'Salida', 'dot-salida');
+
+  // Save to history
+  const today = formatDateKey(new Date());
+  const dayEntry = {
+    date: today,
+    dateLabel: formatDate(new Date()),
+    workMs: state.totalWorkMs,
+    pauseMs: state.totalPauseMs,
+    events: [...state.todayEvents]
+  };
+
+  // Merge if same day exists
+  const idx = state.history.findIndex(d => d.date === today);
+  if (idx >= 0) {
+    state.history[idx].workMs += state.totalWorkMs;
+    state.history[idx].pauseMs += state.totalPauseMs;
+    state.history[idx].events.push(...state.todayEvents);
+  } else {
+    state.history.unshift(dayEntry);
+  }
+
+  state.status = 'idle';
+  state.startTime = null;
+  state.pauseStart = null;
+  state.totalWorkMs = 0;
+  state.totalPauseMs = 0;
+  state.todayEvents = [];
+
+  save();
+  showToast('🏁 Salida registrada');
+  updateClock();
+  renderTodayLog();
+}
+
+// ===== RENDER TODAY LOG =====
+function renderTodayLog() {
+  const container = document.getElementById('todayLog');
+  if (!state.todayEvents.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🕐</div>Aún no hay fichajes hoy</div>`;
+    return;
+  }
+  container.innerHTML = state.todayEvents.map((e, i) => {
+    const dotClass = `dot-${e.type}`;
+    return `
+      <div class="log-item">
+        <div class="log-dot ${dotClass}"></div>
+        <div class="log-info">
+          <div class="log-action">${e.label}</div>
+          <div class="log-time">${e.timeStr}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===== HISTORY =====
+function renderHistory() {
+  const container = document.getElementById('historyList');
+  if (!state.history.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>No hay jornadas registradas</div>`;
+    return;
+  }
+  container.innerHTML = state.history.map((day, i) => {
+    const events = day.events.map(e => `
+      <div class="day-event">
+        <div class="log-dot dot-${e.type}" style="flex-shrink:0"></div>
+        <span>${e.label}</span>
+        <span style="margin-left:auto;font-family:'Space Mono',monospace;color:var(--text2)">${e.timeStr}</span>
+      </div>`).join('');
+
+    return `
+      <div class="day-card">
+        <div class="day-header" onclick="toggleDay(${i})">
+          <div>
+            <div class="day-date">${day.dateLabel}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">
+              <span class="badge badge-work">▶ ${msToHHMM(day.workMs)}</span>
+              ${day.pauseMs > 0 ? `<span class="badge badge-pause" style="margin-left:4px">⏸ ${msToHHMM(day.pauseMs)}</span>` : ''}
+            </div>
+          </div>
+          <div class="day-total">${msToHHMM(day.workMs)}</div>
+        </div>
+        <div class="day-events" id="dayevents-${i}">${events}</div>
+      </div>`;
+  }).join('');
+}
+
+function toggleDay(i) {
+  const el = document.getElementById(`dayevents-${i}`);
+  el.classList.toggle('open');
+}
+
+// ===== REPORTS =====
+let currentReportTab = 'semana';
+
+function setReportTab(tab, btn) {
+  currentReportTab = tab;
+  document.querySelectorAll('.report-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReport();
+}
+
+function getFilteredDays(tab) {
+  const now = new Date();
+  return state.history.filter(day => {
+    const d = new Date(day.date);
+    if (tab === 'semana') {
+      const dayOfWeek = now.getDay() || 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek + 1);
+      monday.setHours(0,0,0,0);
+      return d >= monday;
+    } else if (tab === 'mes') {
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+    return true;
+  });
+}
+
+function renderReport() {
+  const days = getFilteredDays(currentReportTab);
+  const container = document.getElementById('reportContent');
+
+  if (!days.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div>No hay datos para este período</div>`;
+    return;
+  }
+
+  const totalWork = days.reduce((s, d) => s + d.workMs, 0);
+  const totalPause = days.reduce((s, d) => s + d.pauseMs, 0);
+  const daysWorked = days.length;
+  const avgWork = Math.round(totalWork / daysWorked);
+  const expectedMs = daysWorked * JORNADA_NORMAL;
+  const balance = totalWork - expectedMs;
+
+  let html = `
+    <div class="report-card">
+      <div class="report-row">
+        <span class="report-row-label">📅 Días trabajados</span>
+        <span class="report-row-val">${daysWorked}</span>
+      </div>
+      <div class="report-row">
+        <span class="report-row-label">⏱ Tiempo total</span>
+        <span class="report-row-val green">${msToHHMM(totalWork)}</span>
+      </div>
+      <div class="report-row">
+        <span class="report-row-label">⏸ Total pausas</span>
+        <span class="report-row-val yellow">${msToHHMM(totalPause)}</span>
+      </div>
+      <div class="report-row">
+        <span class="report-row-label">📈 Media diaria</span>
+        <span class="report-row-val">${msToHHMM(avgWork)}</span>
+      </div>
+      <div class="report-row">
+        <span class="report-row-label">⚖️ Balance (vs 8h/día)</span>
+        <span class="report-row-val ${balance >= 0 ? 'green' : 'red'}">${balance >= 0 ? '+' : ''}${msToHHMM(Math.abs(balance))}</span>
+      </div>
+    </div>`;
+
+  // Bar chart
+  if (days.length > 0) {
+    const maxMs = Math.max(...days.map(d => d.workMs));
+    const bars = days.slice(0, 7).reverse().map(d => {
+      const pct = maxMs > 0 ? Math.round((d.workMs / maxMs) * 100) : 0;
+      const shortDate = d.date.slice(5).replace('-','/');
+      return `
+        <div class="bar-row">
+          <div class="bar-day">${shortDate}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <div class="bar-val">${msToHHMM(d.workMs)}</div>
+        </div>`;
+    }).join('');
+
+    html += `<div class="bar-chart">
+      <div class="section-title" style="padding:0 0 8px">Horas por día</div>
+      ${bars}
+    </div>`;
+  }
+
+  html += `<button class="export-btn" onclick="exportCSV()">📥 Exportar CSV</button>`;
+  container.innerHTML = html;
+}
+
+// ===== EXPORT CSV =====
+function exportCSV() {
+  const days = getFilteredDays(currentReportTab);
+  if (!days.length) { showToast('No hay datos para exportar'); return; }
+
+  let csv = 'Fecha,Horas Trabajadas,Tiempo Pausas,Nº Pausas\n';
+  days.forEach(d => {
+    const pauses = d.events.filter(e => e.type === 'pausa').length;
+    csv += `${d.date},${msToHHMM(d.workMs)},${msToHHMM(d.pauseMs)},${pauses}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fichajes_${formatDateKey(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ CSV exportado correctamente');
+}
+
+// ===== NAVIGATION =====
+function navigate(screen, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${screen}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (screen === 'history') renderHistory();
+  if (screen === 'reports') renderReport();
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== INIT =====
+renderTodayLog();
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
